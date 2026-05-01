@@ -1,10 +1,8 @@
 # QT-Practice
 
-Qt + OpenCV practice project for a simple desktop vision app.
+Qt + OpenCV + spdlog practice project for a simple desktop vision app.
 
 ## Docker Development Environment
-
-If you want to build inside the provided Docker image:
 
 ```sh
 docker build -t rpi-dev .
