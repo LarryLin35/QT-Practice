@@ -2,6 +2,7 @@
 #define UI_MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QString>
 
 #include "camera/cameraworker.h"
 #include "processor/circleprocessor.h"
@@ -10,6 +11,7 @@
 QT_BEGIN_NAMESPACE
 class QLabel;
 class QPushButton;
+class QTextEdit;
 QT_END_NAMESPACE
 
 class MainWindow : public QMainWindow {
@@ -20,8 +22,9 @@ public:
     ~MainWindow() override;
 
 private slots:
-    void handlePrimaryButton();
-    void onCameraConnected();
+    void handleCameraButton();
+    void handleProcessingButton();
+    void onCameraConnected(const QString& statusMessage);
     void onCameraError(const QString& message);
     void onCameraStopped();
     void onFrameProcessed(const cv::Mat& frame);
@@ -35,14 +38,20 @@ private:
     };
 
     void setupUi();
+    void appendMessage(const QString& message);
+    void updateIndicator(QLabel* light, const QString& color);
     void updateUiState(UiState state, const QString& statusMessage);
     void stopWorkers();
 
-    QLabel* statusLabel_;
+    QLabel* captureLight_;
+    QLabel* processingLight_;
     QLabel* imageLabel_;
-    QPushButton* primaryButton_;
+    QPushButton* cameraButton_;
+    QPushButton* processingButton_;
+    QTextEdit* messageBoard_;
 
     UiState uiState_;
+    QString captureStatusText_;
     FrameQueue frameQueue_;
     CameraWorker* cameraWorker_;
     CircleProcessor* processorWorker_;

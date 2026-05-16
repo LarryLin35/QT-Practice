@@ -5,6 +5,7 @@
 #include <thread>
 
 #include <QObject>
+#include <QString>
 
 #include "storage/framequeue.h"
 
@@ -19,7 +20,7 @@ public:
     void stopCapture();
 
 signals:
-    void cameraConnected();
+    void cameraConnected(const QString& statusMessage);
     void cameraError(const QString& message);
     void cameraStopped();
 

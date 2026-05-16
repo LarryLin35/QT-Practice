@@ -1,6 +1,12 @@
 #include "camera/cameraworker.h"
 
+#include <chrono>
+
 #include <opencv2/videoio.hpp>
+
+namespace {
+const char* kFallbackVideoPath = "../test/test_video_01.mp4";
+}
 
 CameraWorker::CameraWorker(FrameQueue* frameQueue, QObject* parent)
     : QObject(parent), frameQueue_(frameQueue), running_(false) {
@@ -32,23 +38,27 @@ void CameraWorker::stopCapture() {
 }
 
 void CameraWorker::captureLoop() {
-    const std::string testStreamUrl = "../test/test_video_01.mp4";
-    cv::VideoCapture capture(testStreamUrl);
-    if (!capture.isOpened()) {
-        capture.open(0);
-    }
+    cv::VideoCapture capture;
+    bool usingFallbackVideo = false;
 
-    if (!capture.isOpened()) {
+    if (capture.open(0)) {
+        emit cameraConnected("Camera Connected");
+    } else if (capture.open(kFallbackVideoPath)) {
+        usingFallbackVideo = true;
+        emit cameraConnected("Fallback Video OK");
+    } else {
         running_ = false;
-        emit cameraError("Unable to connect to test stream or camera.");
+        emit cameraError("No camera or fallback video source found.");
         return;
     }
-
-    emit cameraConnected();
 
     cv::Mat frame;
     while (running_) {
         if (!capture.read(frame) || frame.empty()) {
+            if (usingFallbackVideo) {
+                capture.set(cv::CAP_PROP_POS_FRAMES, 0);
+            }
+
             std::this_thread::sleep_for(std::chrono::milliseconds(30));
             continue;
         }
