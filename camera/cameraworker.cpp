@@ -9,7 +9,7 @@ const char* kFallbackVideoPath = "../test/test_video_01.mp4";
 }
 
 CameraWorker::CameraWorker(FrameQueue* frameQueue, QObject* parent)
-    : QObject(parent), frameQueue_(frameQueue), running_(false) {
+    : QObject(parent), frameQueue_(frameQueue), running_(false), retryRequested_(false) {
 }
 
 CameraWorker::~CameraWorker() {
@@ -26,8 +26,15 @@ void CameraWorker::startCapture() {
     }
 
     frameQueue_->reset();
+    retryRequested_ = false;
     running_ = true;
     workerThread_ = std::thread(&CameraWorker::captureLoop, this);
+}
+
+void CameraWorker::requestCameraRetry() {
+    if (running_) {
+        retryRequested_ = true;
+    }
 }
 
 void CameraWorker::stopCapture() {
@@ -42,10 +49,10 @@ void CameraWorker::captureLoop() {
     bool usingFallbackVideo = false;
 
     if (capture.open(0)) {
-        emit cameraConnected("Camera Connected");
+        emit cameraConnected("Camera Connected", false);
     } else if (capture.open(kFallbackVideoPath)) {
         usingFallbackVideo = true;
-        emit cameraConnected("Fallback Video OK");
+        emit cameraConnected("Fallback Video OK", true);
     } else {
         running_ = false;
         emit cameraError("No camera or fallback video source found.");
@@ -54,6 +61,17 @@ void CameraWorker::captureLoop() {
 
     cv::Mat frame;
     while (running_) {
+        if (usingFallbackVideo && retryRequested_.exchange(false)) {
+            cv::VideoCapture cameraCapture;
+            if (cameraCapture.open(0)) {
+                capture = cameraCapture;
+                usingFallbackVideo = false;
+                emit cameraConnected("Camera Connected", false);
+            } else {
+                emit cameraRetryFailed();
+            }
+        }
+
         if (!capture.read(frame) || frame.empty()) {
             if (usingFallbackVideo) {
                 capture.set(cv::CAP_PROP_POS_FRAMES, 0);

@@ -24,8 +24,9 @@ public:
 private slots:
     void handleCameraButton();
     void handleProcessingButton();
-    void onCameraConnected(const QString& statusMessage);
+    void onCameraConnected(const QString& statusMessage, bool usingFallbackVideo);
     void onCameraError(const QString& message);
+    void onCameraRetryFailed();
     void onCameraStopped();
     void onFrameProcessed(const cv::Mat& frame);
 
@@ -52,6 +53,7 @@ private:
 
     UiState uiState_;
     QString captureStatusText_;
+    bool usingFallbackVideo_;
     FrameQueue frameQueue_;
     CameraWorker* cameraWorker_;
     CircleProcessor* processorWorker_;

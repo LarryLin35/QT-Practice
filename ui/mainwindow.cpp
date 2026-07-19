@@ -42,6 +42,7 @@ MainWindow::MainWindow(QWidget* parent)
       messageBoard_(nullptr),
       uiState_(UiState::Idle),
       captureStatusText_("Connect Camera"),
+      usingFallbackVideo_(false),
       cameraWorker_(new CameraWorker(&frameQueue_)),
       processorWorker_(new CircleProcessor(&frameQueue_)) {
     qRegisterMetaType<cv::Mat>("cv::Mat");
@@ -49,6 +50,7 @@ MainWindow::MainWindow(QWidget* parent)
 
     connect(cameraWorker_, &CameraWorker::cameraConnected, this, &MainWindow::onCameraConnected);
     connect(cameraWorker_, &CameraWorker::cameraError, this, &MainWindow::onCameraError);
+    connect(cameraWorker_, &CameraWorker::cameraRetryFailed, this, &MainWindow::onCameraRetryFailed);
     connect(cameraWorker_, &CameraWorker::cameraStopped, this, &MainWindow::onCameraStopped);
     connect(processorWorker_, &CircleProcessor::frameProcessed, this, &MainWindow::onFrameProcessed);
 }
@@ -62,6 +64,12 @@ void MainWindow::handleCameraButton() {
         updateUiState(UiState::Connecting, {});
         appendMessage("Searching for camera...");
         cameraWorker_->startCapture();
+        return;
+    }
+
+    if (uiState_ == UiState::ReadyToProcess && usingFallbackVideo_) {
+        appendMessage("Retrying camera connection...");
+        cameraWorker_->requestCameraRetry();
     }
 }
 
@@ -80,14 +88,21 @@ void MainWindow::handleProcessingButton() {
     }
 }
 
-void MainWindow::onCameraConnected(const QString& statusMessage) {
-    updateUiState(UiState::ReadyToProcess, statusMessage);
+void MainWindow::onCameraConnected(const QString& statusMessage, bool usingFallbackVideo) {
+    usingFallbackVideo_ = usingFallbackVideo;
+    updateUiState(uiState_ == UiState::Processing ? UiState::Processing : UiState::ReadyToProcess,
+                  statusMessage);
     appendMessage(statusMessage);
 }
 
 void MainWindow::onCameraError(const QString& message) {
+    usingFallbackVideo_ = false;
     updateUiState(UiState::Idle, message);
     appendMessage(message);
+}
+
+void MainWindow::onCameraRetryFailed() {
+    appendMessage("Camera still unavailable. Continuing with fallback video.");
 }
 
 void MainWindow::onCameraStopped() {
@@ -216,15 +231,15 @@ void MainWindow::updateUiState(UiState state, const QString& statusMessage) {
         if (!statusMessage.isEmpty()) {
             captureStatusText_ = statusMessage;
         }
-        updateIndicator(captureLight_, activeColor);
+        updateIndicator(captureLight_, usingFallbackVideo_ ? inactiveColor : activeColor);
         updateIndicator(processingLight_, inactiveColor);
-        cameraButton_->setEnabled(false);
-        cameraButton_->setText(captureStatusText_);
+        cameraButton_->setEnabled(usingFallbackVideo_);
+        cameraButton_->setText(usingFallbackVideo_ ? QStringLiteral("Retry Camera") : captureStatusText_);
         processingButton_->setEnabled(true);
         processingButton_->setText("Start Processing");
         break;
     case UiState::Processing:
-        updateIndicator(captureLight_, activeColor);
+        updateIndicator(captureLight_, usingFallbackVideo_ ? inactiveColor : activeColor);
         updateIndicator(processingLight_, activeColor);
         cameraButton_->setEnabled(false);
         cameraButton_->setText(captureStatusText_);

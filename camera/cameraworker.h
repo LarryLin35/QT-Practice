@@ -18,10 +18,12 @@ public:
 
     void startCapture();
     void stopCapture();
+    void requestCameraRetry();
 
 signals:
-    void cameraConnected(const QString& statusMessage);
+    void cameraConnected(const QString& statusMessage, bool usingFallbackVideo);
     void cameraError(const QString& message);
+    void cameraRetryFailed();
     void cameraStopped();
 
 private:
@@ -29,6 +31,7 @@ private:
 
     FrameQueue* frameQueue_;
     std::atomic<bool> running_;
+    std::atomic<bool> retryRequested_;
     std::thread workerThread_;
 };
 

@@ -73,11 +73,11 @@ cv::Mat CircleProcessor::detectCircles(const cv::Mat& frame) const {
         circles,
         cv::HOUGH_GRADIENT,
         1.0,
-        gray.rows / 8.0,
+        gray.rows / 3.0,
         100.0,
-        30.0,
-        10,
-        0);
+        35.0,
+        gray.rows / 10,
+        gray.rows / 2);
 
     for (const cv::Vec3f& circle : circles) {
         const cv::Point center(cvRound(circle[0]), cvRound(circle[1]));
