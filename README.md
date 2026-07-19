@@ -4,6 +4,8 @@ Qt + OpenCV + spdlog practice project for a simple desktop vision app.
 
 ## Docker Development Environment
 
+Set up the container first:
+
 ```sh
 docker build -t rpi-dev .
 docker run -it --rm \
