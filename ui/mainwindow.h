@@ -8,6 +8,8 @@
 #include "processor/circleprocessor.h"
 #include "storage/framequeue.h"
 
+class AppConfig;
+
 QT_BEGIN_NAMESPACE
 class QLabel;
 class QPushButton;
@@ -20,7 +22,7 @@ class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget* parent = nullptr);
+    explicit MainWindow(AppConfig& config, QWidget* parent = nullptr);
     ~MainWindow() override;
 
 private slots:
@@ -60,6 +62,7 @@ private:
     QSlider* maxRadiusSlider_;
     QTextEdit* messageBoard_;
 
+    AppConfig& config_;
     UiState uiState_;
     QString captureStatusText_;
     bool usingFallbackVideo_;

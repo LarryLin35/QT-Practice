@@ -2,6 +2,7 @@
 #define CAMERA_CAMERAWORKER_H
 
 #include <atomic>
+#include <string>
 #include <thread>
 
 #include <QObject>
@@ -13,7 +14,8 @@ class CameraWorker : public QObject {
     Q_OBJECT
 
 public:
-    explicit CameraWorker(FrameQueue* frameQueue, QObject* parent = nullptr);
+    CameraWorker(FrameQueue* frameQueue, int deviceIndex, const QString& fallbackVideoPath,
+                 QObject* parent = nullptr);
     ~CameraWorker() override;
 
     void startCapture();
@@ -30,6 +32,8 @@ private:
     void captureLoop();
 
     FrameQueue* frameQueue_;
+    int deviceIndex_;
+    std::string fallbackVideoPath_;
     std::atomic<bool> running_;
     std::atomic<bool> retryRequested_;
     std::thread workerThread_;
