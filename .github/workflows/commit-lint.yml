@@ -1,0 +1,74 @@
+name: Commit Message Lint
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  commit-lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Validate Commit Messages
+        run: |
+          #!/bin/bash
+    
+          # Define commit message regex
+          COMMIT_REGEX='^(feat|build|chore|cicd|docs|fix|perf|refactor|style|test|modify|revert|upgrade)\([a-z0-9-]+\): .{1,50}$'
+          
+          echo "Event: ${{ github.event_name }}"
+          echo "Base: ${{ github.event.pull_request.base.sha }}"
+          echo "Head: ${{ github.event.pull_request.head.sha }}"
+          echo ""
+          
+          # Get commits in the PR (exclude merge commits)
+          COMMITS=$(git log --no-merges --format=%H ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
+          
+          # Skip validation if there are no new commits
+          if [ -z "$COMMITS" ]; then
+            echo "No new commits to validate"
+            exit 0
+          fi
+          
+          COMMIT_COUNT=$(echo "$COMMITS" | wc -l)
+          ERROR_COUNT=0
+          
+          echo "Found $COMMIT_COUNT commit(s) to validate"
+          echo "Expected: type(component): description"
+          echo "  Type: feat, build, chore, cicd, docs, fix, perf, refactor, style, test, modify, revert, upgrade"
+          echo "  Component: lowercase letters and numbers with hyphens"
+          echo "  Description: 1-50 characters"
+          echo ""
+          
+          # Iterate to validate all commit message formats
+          for COMMIT in $COMMITS; do
+            MESSAGE=$(git log --format=%B -n 1 $COMMIT)
+            SUBJECT=$(echo "$MESSAGE" | head -n 1)
+            
+            echo "Commit: $COMMIT"
+            echo "Subject: $SUBJECT"
+            
+            # Validate commit message format
+            if ! echo "$SUBJECT" | grep -Eq "$COMMIT_REGEX"; then
+              echo "Result: ❌ Invalid format"
+              ERROR_COUNT=$((ERROR_COUNT+1))
+            else
+              echo "Result: ✅ Valid format"
+            fi
+            
+            echo ""
+          done
+          
+          # Summarize and return
+          if [ $ERROR_COUNT -gt 0 ]; then
+            echo "Summary: ❌ $ERROR_COUNT commit message(s) are invalid!"
+            exit 1
+          else
+            echo "Summary: ✅ All $COMMIT_COUNT commit message(s) are valid!"
+            exit 0
+          fi
