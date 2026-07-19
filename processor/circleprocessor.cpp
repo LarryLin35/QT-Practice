@@ -1,5 +1,7 @@
 #include "processor/circleprocessor.h"
 
+#include <algorithm>
+
 #include <opencv2/imgproc.hpp>
 
 CircleProcessor::CircleProcessor(FrameQueue* frameQueue, QObject* parent)
@@ -8,6 +10,11 @@ CircleProcessor::CircleProcessor(FrameQueue* frameQueue, QObject* parent)
       running_(true),
       processingEnabled_(false),
       resetRequested_(false),
+      sensitivity_(35),
+      edgeThreshold_(100),
+      minDistancePercent_(33),
+      minRadiusPercent_(10),
+      maxRadiusPercent_(50),
       workerThread_(&CircleProcessor::processLoop, this) {
 }
 
@@ -27,6 +34,23 @@ void CircleProcessor::setProcessingEnabled(bool enabled) {
     if (enabled) {
         resetRequested_ = true;
     }
+}
+
+void CircleProcessor::setSensitivity(int value) {
+    sensitivity_ = value;
+}
+
+void CircleProcessor::setEdgeThreshold(int value) {
+    edgeThreshold_ = value;
+}
+
+void CircleProcessor::setMinDistancePercent(int value) {
+    minDistancePercent_ = value;
+}
+
+void CircleProcessor::setRadiusRangePercent(int minPercent, int maxPercent) {
+    minRadiusPercent_ = minPercent;
+    maxRadiusPercent_ = maxPercent;
 }
 
 void CircleProcessor::processLoop() {
@@ -67,17 +91,20 @@ cv::Mat CircleProcessor::detectCircles(const cv::Mat& frame) const {
     cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
     cv::medianBlur(gray, gray, 5);
 
+    const int minRadius = gray.rows * minRadiusPercent_ / 100;
+    const int maxRadius = std::max(minRadius, gray.rows * maxRadiusPercent_ / 100);
+
     std::vector<cv::Vec3f> circles;
     cv::HoughCircles(
         gray,
         circles,
         cv::HOUGH_GRADIENT,
         1.0,
-        gray.rows / 3.0,
-        100.0,
-        35.0,
-        gray.rows / 10,
-        gray.rows / 2);
+        std::max(1.0, gray.rows * minDistancePercent_ / 100.0),
+        std::max(1, edgeThreshold_.load()),
+        std::max(1, sensitivity_.load()),
+        minRadius,
+        maxRadius);
 
     for (const cv::Vec3f& circle : circles) {
         const cv::Point center(cvRound(circle[0]), cvRound(circle[1]));

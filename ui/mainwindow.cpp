@@ -7,6 +7,7 @@
 #include <QMetaObject>
 #include <QPixmap>
 #include <QPushButton>
+#include <QSlider>
 #include <QTextCursor>
 #include <QTextEdit>
 #include <QVBoxLayout>
@@ -39,6 +40,11 @@ MainWindow::MainWindow(QWidget* parent)
       imageLabel_(nullptr),
       cameraButton_(nullptr),
       processingButton_(nullptr),
+      sensitivitySlider_(nullptr),
+      edgeThresholdSlider_(nullptr),
+      minDistanceSlider_(nullptr),
+      minRadiusSlider_(nullptr),
+      maxRadiusSlider_(nullptr),
       messageBoard_(nullptr),
       uiState_(UiState::Idle),
       captureStatusText_("Connect Camera"),
@@ -178,6 +184,25 @@ void MainWindow::setupUi() {
 
     controlLayout->addLayout(cameraRow);
     controlLayout->addLayout(processingRow);
+
+    sensitivitySlider_ = addParameterRow(controlLayout, "Sensitivity", 10, 100, 35);
+    edgeThresholdSlider_ = addParameterRow(controlLayout, "Edge Threshold", 50, 300, 100);
+    minDistanceSlider_ = addParameterRow(controlLayout, "Min Distance %", 5, 100, 33);
+    minRadiusSlider_ = addParameterRow(controlLayout, "Min Radius %", 1, 100, 10);
+    maxRadiusSlider_ = addParameterRow(controlLayout, "Max Radius %", 1, 100, 50);
+
+    connect(sensitivitySlider_, &QSlider::valueChanged, this, [this](int value) {
+        processorWorker_->setSensitivity(value);
+    });
+    connect(edgeThresholdSlider_, &QSlider::valueChanged, this, [this](int value) {
+        processorWorker_->setEdgeThreshold(value);
+    });
+    connect(minDistanceSlider_, &QSlider::valueChanged, this, [this](int value) {
+        processorWorker_->setMinDistancePercent(value);
+    });
+    connect(minRadiusSlider_, &QSlider::valueChanged, this, &MainWindow::applyRadiusRange);
+    connect(maxRadiusSlider_, &QSlider::valueChanged, this, &MainWindow::applyRadiusRange);
+
     controlLayout->addWidget(messageBoard_, 1);
 
     mainLayout->addWidget(imageLabel_, 1);
@@ -188,6 +213,42 @@ void MainWindow::setupUi() {
     resize(960, 600);
     updateUiState(UiState::Idle, {});
     appendMessage("Ready. Connect camera to start.");
+}
+
+QSlider* MainWindow::addParameterRow(QVBoxLayout* layout, const QString& name, int min, int max, int value) {
+    auto* row = new QHBoxLayout();
+    row->setSpacing(8);
+
+    auto* nameLabel = new QLabel(name, this);
+    nameLabel->setMinimumWidth(104);
+
+    auto* slider = new QSlider(Qt::Horizontal, this);
+    slider->setRange(min, max);
+    slider->setValue(value);
+
+    auto* valueLabel = new QLabel(QString::number(value), this);
+    valueLabel->setFixedWidth(32);
+    valueLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
+    connect(slider, &QSlider::valueChanged, valueLabel, [valueLabel](int newValue) {
+        valueLabel->setText(QString::number(newValue));
+    });
+
+    row->addWidget(nameLabel);
+    row->addWidget(slider, 1);
+    row->addWidget(valueLabel);
+    layout->addLayout(row);
+    return slider;
+}
+
+void MainWindow::applyRadiusRange() {
+    int minPercent = minRadiusSlider_->value();
+    int maxPercent = maxRadiusSlider_->value();
+    if (minPercent > maxPercent) {
+        maxPercent = minPercent;
+        maxRadiusSlider_->setValue(maxPercent);
+    }
+    processorWorker_->setRadiusRangePercent(minPercent, maxPercent);
 }
 
 void MainWindow::appendMessage(const QString& message) {

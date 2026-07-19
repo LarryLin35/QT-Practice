@@ -21,6 +21,11 @@ public:
     void stop();
     void setProcessingEnabled(bool enabled);
 
+    void setSensitivity(int value);
+    void setEdgeThreshold(int value);
+    void setMinDistancePercent(int value);
+    void setRadiusRangePercent(int minPercent, int maxPercent);
+
 signals:
     void frameProcessed(const cv::Mat& frame);
 
@@ -32,6 +37,11 @@ private:
     std::atomic<bool> running_;
     std::atomic<bool> processingEnabled_;
     std::atomic<bool> resetRequested_;
+    std::atomic<int> sensitivity_;
+    std::atomic<int> edgeThreshold_;
+    std::atomic<int> minDistancePercent_;
+    std::atomic<int> minRadiusPercent_;
+    std::atomic<int> maxRadiusPercent_;
     std::thread workerThread_;
 };
 

@@ -11,7 +11,9 @@
 QT_BEGIN_NAMESPACE
 class QLabel;
 class QPushButton;
+class QSlider;
 class QTextEdit;
+class QVBoxLayout;
 QT_END_NAMESPACE
 
 class MainWindow : public QMainWindow {
@@ -39,6 +41,8 @@ private:
     };
 
     void setupUi();
+    QSlider* addParameterRow(QVBoxLayout* layout, const QString& name, int min, int max, int value);
+    void applyRadiusRange();
     void appendMessage(const QString& message);
     void updateIndicator(QLabel* light, const QString& color);
     void updateUiState(UiState state, const QString& statusMessage);
@@ -49,6 +53,11 @@ private:
     QLabel* imageLabel_;
     QPushButton* cameraButton_;
     QPushButton* processingButton_;
+    QSlider* sensitivitySlider_;
+    QSlider* edgeThresholdSlider_;
+    QSlider* minDistanceSlider_;
+    QSlider* minRadiusSlider_;
+    QSlider* maxRadiusSlider_;
     QTextEdit* messageBoard_;
 
     UiState uiState_;
