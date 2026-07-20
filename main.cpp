@@ -1,12 +1,17 @@
 #include <QApplication>
 
+#include "config/appconfig.h"
 #include "ui/mainwindow.h"
 
 int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
 
-    MainWindow window;
+    AppConfig config(QStringLiteral("../test/config.ini"));
+
+    MainWindow window(config);
     window.show();
 
-    return app.exec();
+    const int result = app.exec();
+    config.save();
+    return result;
 }
