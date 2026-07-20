@@ -4,12 +4,14 @@
 
 #include <opencv2/videoio.hpp>
 
-namespace {
-const char* kFallbackVideoPath = "../test/test_video_01.mp4";
-}
-
-CameraWorker::CameraWorker(FrameQueue* frameQueue, QObject* parent)
-    : QObject(parent), frameQueue_(frameQueue), running_(false), retryRequested_(false) {
+CameraWorker::CameraWorker(FrameQueue* frameQueue, int deviceIndex, const QString& fallbackVideoPath,
+                           QObject* parent)
+    : QObject(parent),
+      frameQueue_(frameQueue),
+      deviceIndex_(deviceIndex),
+      fallbackVideoPath_(fallbackVideoPath.toStdString()),
+      running_(false),
+      retryRequested_(false) {
 }
 
 CameraWorker::~CameraWorker() {
@@ -48,9 +50,9 @@ void CameraWorker::captureLoop() {
     cv::VideoCapture capture;
     bool usingFallbackVideo = false;
 
-    if (capture.open(0)) {
+    if (capture.open(deviceIndex_)) {
         emit cameraConnected("Camera Connected", false);
-    } else if (capture.open(kFallbackVideoPath)) {
+    } else if (capture.open(fallbackVideoPath_)) {
         usingFallbackVideo = true;
         emit cameraConnected("Fallback Video OK", true);
     } else {
@@ -63,7 +65,7 @@ void CameraWorker::captureLoop() {
     while (running_) {
         if (usingFallbackVideo && retryRequested_.exchange(false)) {
             cv::VideoCapture cameraCapture;
-            if (cameraCapture.open(0)) {
+            if (cameraCapture.open(deviceIndex_)) {
                 capture = cameraCapture;
                 usingFallbackVideo = false;
                 emit cameraConnected("Camera Connected", false);

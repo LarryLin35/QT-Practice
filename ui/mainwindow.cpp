@@ -15,6 +15,8 @@
 
 #include <opencv2/imgproc.hpp>
 
+#include "config/appconfig.h"
+
 namespace {
 QImage matToQImage(const cv::Mat& frame) {
     if (frame.empty()) {
@@ -33,7 +35,7 @@ QImage matToQImage(const cv::Mat& frame) {
 }
 }
 
-MainWindow::MainWindow(QWidget* parent)
+MainWindow::MainWindow(AppConfig& config, QWidget* parent)
     : QMainWindow(parent),
       captureLight_(nullptr),
       processingLight_(nullptr),
@@ -46,12 +48,16 @@ MainWindow::MainWindow(QWidget* parent)
       minRadiusSlider_(nullptr),
       maxRadiusSlider_(nullptr),
       messageBoard_(nullptr),
+      config_(config),
       uiState_(UiState::Idle),
       captureStatusText_("Connect Camera"),
       usingFallbackVideo_(false),
-      cameraWorker_(new CameraWorker(&frameQueue_)),
+      cameraWorker_(new CameraWorker(&frameQueue_, config.camera().deviceIndex,
+                                     config.camera().fallbackVideoPath)),
       processorWorker_(new CircleProcessor(&frameQueue_)) {
     qRegisterMetaType<cv::Mat>("cv::Mat");
+    processorWorker_->setProcessingParams(config.processing());
+    processorWorker_->setRenderParams(config.render());
     setupUi();
 
     connect(cameraWorker_, &CameraWorker::cameraConnected, this, &MainWindow::onCameraConnected);
@@ -185,19 +191,38 @@ void MainWindow::setupUi() {
     controlLayout->addLayout(cameraRow);
     controlLayout->addLayout(processingRow);
 
-    sensitivitySlider_ = addParameterRow(controlLayout, "Sensitivity", 10, 100, 35);
-    edgeThresholdSlider_ = addParameterRow(controlLayout, "Edge Threshold", 50, 300, 100);
-    minDistanceSlider_ = addParameterRow(controlLayout, "Min Distance %", 5, 100, 33);
-    minRadiusSlider_ = addParameterRow(controlLayout, "Min Radius %", 1, 100, 10);
-    maxRadiusSlider_ = addParameterRow(controlLayout, "Max Radius %", 1, 100, 50);
+    const DetectionParams& params = config_.detection();
+    sensitivitySlider_ = addParameterRow(controlLayout, "Sensitivity",
+                                         params.sensitivity.min, params.sensitivity.max,
+                                         params.sensitivity.value);
+    edgeThresholdSlider_ = addParameterRow(controlLayout, "Edge Threshold",
+                                           params.edgeThreshold.min, params.edgeThreshold.max,
+                                           params.edgeThreshold.value);
+    minDistanceSlider_ = addParameterRow(controlLayout, "Min Distance %",
+                                         params.minDistancePercent.min, params.minDistancePercent.max,
+                                         params.minDistancePercent.value);
+    minRadiusSlider_ = addParameterRow(controlLayout, "Min Radius %",
+                                       params.minRadiusPercent.min, params.minRadiusPercent.max,
+                                       params.minRadiusPercent.value);
+    maxRadiusSlider_ = addParameterRow(controlLayout, "Max Radius %",
+                                       params.maxRadiusPercent.min, params.maxRadiusPercent.max,
+                                       params.maxRadiusPercent.value);
+
+    processorWorker_->setSensitivity(params.sensitivity.value);
+    processorWorker_->setEdgeThreshold(params.edgeThreshold.value);
+    processorWorker_->setMinDistancePercent(params.minDistancePercent.value);
+    processorWorker_->setRadiusRangePercent(params.minRadiusPercent.value, params.maxRadiusPercent.value);
 
     connect(sensitivitySlider_, &QSlider::valueChanged, this, [this](int value) {
+        config_.detection().sensitivity.value = value;
         processorWorker_->setSensitivity(value);
     });
     connect(edgeThresholdSlider_, &QSlider::valueChanged, this, [this](int value) {
+        config_.detection().edgeThreshold.value = value;
         processorWorker_->setEdgeThreshold(value);
     });
     connect(minDistanceSlider_, &QSlider::valueChanged, this, [this](int value) {
+        config_.detection().minDistancePercent.value = value;
         processorWorker_->setMinDistancePercent(value);
     });
     connect(minRadiusSlider_, &QSlider::valueChanged, this, &MainWindow::applyRadiusRange);
@@ -248,6 +273,8 @@ void MainWindow::applyRadiusRange() {
         maxPercent = minPercent;
         maxRadiusSlider_->setValue(maxPercent);
     }
+    config_.detection().minRadiusPercent.value = minPercent;
+    config_.detection().maxRadiusPercent.value = maxPercent;
     processorWorker_->setRadiusRangePercent(minPercent, maxPercent);
 }
 

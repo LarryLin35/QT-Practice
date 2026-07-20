@@ -12,6 +12,10 @@ add_executable(my_vision_app
     main.cpp
     camera/cameraworker.cpp
     camera/cameraworker.h
+    config/appconfig.cpp
+    config/appconfig.h
+    config/configdefaults.h
+    config/detectionparams.h
     processor/circleprocessor.cpp
     processor/circleprocessor.h
     storage/framequeue.cpp
