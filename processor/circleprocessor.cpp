@@ -2,9 +2,15 @@
 
 #include <algorithm>
 
+#include <QLoggingCategory>
+
 #include <opencv2/imgproc.hpp>
 
 #include "config/configdefaults.h"
+
+namespace {
+Q_LOGGING_CATEGORY(logProcessor, "app.processor")
+}
 
 CircleProcessor::CircleProcessor(FrameQueue* frameQueue, QObject* parent)
     : QObject(parent),
@@ -43,6 +49,7 @@ void CircleProcessor::setProcessingEnabled(bool enabled) {
     if (enabled) {
         resetRequested_ = true;
     }
+    qCInfo(logProcessor) << "Processing" << (enabled ? "enabled" : "disabled");
 }
 
 void CircleProcessor::setSensitivity(int value) {
@@ -129,6 +136,9 @@ cv::Mat CircleProcessor::detectCircles(const cv::Mat& frame) const {
         std::max(1, sensitivity_.load()),
         minRadius,
         maxRadius);
+
+    qCDebug(logProcessor) << "Detected" << circles.size() << "circles (radius range"
+                          << minRadius << "-" << maxRadius << "px)";
 
     const cv::Scalar circleColor(circleColorB_.load(), circleColorG_.load(), circleColorR_.load());
     const int circleThickness = circleThickness_.load();
