@@ -1,6 +1,7 @@
 #include "ui/mainwindow.h"
 
 #include <QDateTime>
+#include <QDebug>
 #include <QHBoxLayout>
 #include <QImage>
 #include <QLabel>
@@ -279,6 +280,7 @@ void MainWindow::applyRadiusRange() {
 }
 
 void MainWindow::appendMessage(const QString& message) {
+    qInfo().noquote() << message;
     const QString timestamp = QDateTime::currentDateTime().toString("HH:mm:ss");
     messageBoard_->append(QString("[%1] %2").arg(timestamp, message));
     messageBoard_->moveCursor(QTextCursor::End);

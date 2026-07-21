@@ -2,7 +2,13 @@
 
 #include <chrono>
 
+#include <QLoggingCategory>
+
 #include <opencv2/videoio.hpp>
+
+namespace {
+Q_LOGGING_CATEGORY(logCamera, "app.camera")
+}
 
 CameraWorker::CameraWorker(FrameQueue* frameQueue, int deviceIndex, const QString& fallbackVideoPath,
                            QObject* parent)
@@ -51,36 +57,54 @@ void CameraWorker::captureLoop() {
     bool usingFallbackVideo = false;
 
     if (capture.open(deviceIndex_)) {
+        qCInfo(logCamera) << "Camera opened on device index" << deviceIndex_;
         emit cameraConnected("Camera Connected", false);
     } else if (capture.open(fallbackVideoPath_)) {
         usingFallbackVideo = true;
+        qCWarning(logCamera) << "Camera device" << deviceIndex_
+                             << "unavailable; using fallback video:"
+                             << QString::fromStdString(fallbackVideoPath_);
         emit cameraConnected("Fallback Video OK", true);
     } else {
         running_ = false;
+        qCCritical(logCamera) << "No source found (device index" << deviceIndex_
+                              << ", fallback:" << QString::fromStdString(fallbackVideoPath_) << ")";
         emit cameraError("No camera or fallback video source found.");
         return;
     }
 
     cv::Mat frame;
+    bool readFailing = false;
     while (running_) {
         if (usingFallbackVideo && retryRequested_.exchange(false)) {
             cv::VideoCapture cameraCapture;
             if (cameraCapture.open(deviceIndex_)) {
                 capture = cameraCapture;
                 usingFallbackVideo = false;
+                qCInfo(logCamera) << "Retry succeeded; switched to camera device" << deviceIndex_;
                 emit cameraConnected("Camera Connected", false);
             } else {
+                qCWarning(logCamera) << "Camera retry failed; staying on fallback video";
                 emit cameraRetryFailed();
             }
         }
 
         if (!capture.read(frame) || frame.empty()) {
             if (usingFallbackVideo) {
+                qCDebug(logCamera) << "Fallback video reached end; looping";
                 capture.set(cv::CAP_PROP_POS_FRAMES, 0);
+            } else if (!readFailing) {
+                readFailing = true;
+                qCWarning(logCamera) << "Camera frame read failed; will keep retrying";
             }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(30));
             continue;
+        }
+
+        if (readFailing) {
+            readFailing = false;
+            qCInfo(logCamera) << "Camera frame read recovered";
         }
 
         frameQueue_->push(frame);
@@ -88,5 +112,6 @@ void CameraWorker::captureLoop() {
     }
 
     capture.release();
+    qCInfo(logCamera) << "Capture loop stopped";
     emit cameraStopped();
 }
